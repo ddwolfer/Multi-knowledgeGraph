@@ -27,6 +27,36 @@ npm install
 
 首次啟動會自動下載 Qwen3-Embedding-0.6B ONNX 模型（~560MB，只下載一次）。
 
+### 一鍵 init skill（推薦）
+
+如果你的專案用 **Claude Code**,最簡單的方式是 `kg-init` skill——它會幫你產生正確的 `.mcp.json` / `.claude/settings.json` / 可選的 `.codex/config.toml` / `.gemini/settings.json`,絕對路徑全自動填好,還可以順便注入 briefing 區塊到 `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`。
+
+```bash
+# 1. clone 進你的專案（子目錄名稱隨意,推薦 kg）
+git clone https://github.com/ddwolfer/Multi-knowledgeGraph kg
+(cd kg && npm install)
+
+# 2. 抄 skill 到專案的 .claude/skills/,Claude Code 才找得到
+mkdir -p .claude/skills
+cp -r kg/.claude/skills/kg-init .claude/skills/
+
+# 3. 在 Claude Code 內：/kg-init
+```
+
+Skill 會問 4 個短問題（DB 模式、要哪些平台、KG 目錄位置、要不要 briefing）,然後跑 `scripts/setup-project.js` 帶對應 flag。整個流程 **idempotent**——隨時可以重跑,不會弄壞你既有的設定。
+
+**沒有 Claude Code 也可以**（任何 CLI 都行）：
+
+```bash
+node kg/scripts/setup-project.js --interactive
+# 或一次給齊 flags（非互動）：
+node kg/scripts/setup-project.js --db single --platforms claude,codex,gemini
+```
+
+**Codex CLI 注意**：project-level 的 `.codex/config.toml` 需要先信任這個目錄。設定完之後,編輯 `~/.codex/trust.toml` 或照你的 Codex 版本走信任流程,MCP server 才會載入。
+
+如果你想全部自己手動接,下面章節有完整的手動設定說明。
+
 ### MCP 設定
 
 在專案 `.mcp.json`：

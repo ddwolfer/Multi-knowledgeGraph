@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "knowledge-graph": {
+      "command": "node",
+      "args": ["{{KG_ROOT}}/main.js"]
+    }
+  }
+}

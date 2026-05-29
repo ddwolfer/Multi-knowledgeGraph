@@ -27,6 +27,36 @@ npm install
 
 On first startup, the Qwen3-Embedding-0.6B ONNX model (~560MB) is automatically downloaded (one-time only).
 
+### One-command init via skill (recommended)
+
+If your project uses **Claude Code**, the easiest setup is the `kg-init` skill — it generates the right `.mcp.json` / `.claude/settings.json` / optional `.codex/config.toml` / `.gemini/settings.json` with correct absolute paths, plus briefing blocks in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` if you want.
+
+```bash
+# 1. Clone this repo into your project (any subdirectory name; `kg` recommended)
+git clone https://github.com/ddwolfer/Multi-knowledgeGraph kg
+(cd kg && npm install)
+
+# 2. Copy the skill into your project so Claude Code can discover it
+mkdir -p .claude/skills
+cp -r kg/.claude/skills/kg-init .claude/skills/
+
+# 3. In Claude Code: /kg-init
+```
+
+The skill asks 4 short questions (DB mode, platforms, KG dir, briefing on/off) and then runs `scripts/setup-project.js` with the right flags. Everything is **idempotent** — re-run any time without breaking your existing config.
+
+**Without Claude Code** (works with any CLI):
+
+```bash
+node kg/scripts/setup-project.js --interactive
+# or non-interactive with explicit flags:
+node kg/scripts/setup-project.js --db single --platforms claude,codex,gemini
+```
+
+**Codex CLI note**: project-level `.codex/config.toml` requires trusting this directory. After setup, edit `~/.codex/trust.toml` or follow your Codex version's trust prompt before the MCP server will load.
+
+If you'd rather wire everything by hand, the sections below show the manual config.
+
 ### MCP Configuration
 
 In your project's `.mcp.json`:

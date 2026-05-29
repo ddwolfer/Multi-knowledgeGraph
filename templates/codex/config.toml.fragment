@@ -1,0 +1,9 @@
+# Multi-knowledgeGraph MCP server — managed by kg-init setup script.
+# Re-running setup-project.js is idempotent: this block will be replaced, not duplicated.
+# Lines between BEGIN/END markers belong to setup-project.js.
+
+# KG-BEGIN
+[mcp_servers.knowledge-graph]
+command = "node"
+args = ["{{KG_ROOT}}/main.js"]
+# KG-END
