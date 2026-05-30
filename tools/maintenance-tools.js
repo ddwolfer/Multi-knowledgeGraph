@@ -34,7 +34,7 @@ export function registerMaintenanceTools(server) {
     'crystallize_skill',
     'Check if KG has knowledge not yet reflected in skill md files. Reports unsynced knowledge that needs to be added to existing skills, or suggests creating new md files if content doesn\'t fit anywhere.',
     {
-      topic: z.string().describe('Topic to check (e.g. "kick", "808", "hihat", "transition")'),
+      topic: z.string().describe('Topic to check (e.g. a concept, component, or keyword)'),
       skill_paths: z.array(z.string()).optional()
         .describe('Absolute paths to existing skill md files to check against. If omitted, only lists KG knowledge for the topic.'),
     },

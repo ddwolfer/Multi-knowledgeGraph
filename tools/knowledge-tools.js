@@ -23,7 +23,7 @@ export function registerKnowledgeTools(server) {
       content: z.string().describe('Full knowledge content'),
       source: z.string().optional().describe('Session ID or "teacher" / "external"'),
       quote: z.string().optional().describe('Teacher\'s exact words (required for trust=principle)'),
-      metadata: z.record(z.any()).optional().describe('JSON metadata: {element, genre, bpm, key, ...}'),
+      metadata: z.record(z.any()).optional().describe('Free-form JSON metadata, e.g. {domain, topic, component, source}'),
     },
     async ({ type, trust, name, content, source, quote, metadata }) => {
       // Anti-fabrication: principle requires quote

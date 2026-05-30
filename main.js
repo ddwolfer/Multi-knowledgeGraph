@@ -1,6 +1,6 @@
 /**
  * Knowledge Graph MCP Server
- * SQLite + sqlite-vec + FTS5 hybrid search for arrangement knowledge.
+ * SQLite + sqlite-vec + FTS5 hybrid search over a long-term-memory knowledge graph.
  *
  * 9 tools:
  *   store_knowledge, connect_knowledge, search_memory, traverse_graph,
@@ -52,7 +52,7 @@ import('./lib/embeddings.js').then(async (mod) => {
 const server = new McpServer({
   name: 'knowledge-graph',
   version: '1.0.0',
-  description: 'Knowledge Graph — hybrid search for arrangement knowledge'
+  description: 'Knowledge Graph — hybrid search (vector + keyword + graph) over long-term memory'
 });
 
 // Register all tools

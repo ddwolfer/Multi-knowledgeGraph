@@ -14,12 +14,12 @@ export function registerEpisodeTools(server) {
     'Record a workflow experience (success, failure, or lesson) with steps.',
     {
       type: z.enum(['success', 'failure', 'lesson']).describe('Experience type'),
-      context: z.record(z.any()).optional().describe('Context: {bpm, key, genre, mood, ...}'),
+      context: z.record(z.any()).optional().describe('Free-form context, e.g. {domain, topic, scenario}'),
       summary: z.string().describe('Brief summary of what happened'),
       outcome: z.string().optional().describe('Result or lesson learned'),
       session_id: z.string().optional().describe('Session identifier'),
       steps: z.array(z.object({
-        element: z.string().optional().describe('Which element (kick, 808, etc.)'),
+        element: z.string().optional().describe('Which component/subsystem this step concerns (optional)'),
         action: z.string().describe('What was done'),
         decision: z.string().optional().describe('Decision made'),
         reason: z.string().optional().describe('Why this decision'),
@@ -67,9 +67,9 @@ export function registerEpisodeTools(server) {
   // ─── recall_experience ───
   server.tool(
     'recall_experience',
-    'Find past experiences by context (genre, bpm, key, mood, element).',
+    'Find past experiences by context (e.g. domain, topic, scenario, component).',
     {
-      context: z.record(z.any()).optional().describe('Context filter: {genre, bpm, key, mood, ...}'),
+      context: z.record(z.any()).optional().describe('Free-form context filter, e.g. {domain, topic, scenario}'),
       element: z.string().optional().describe('Filter by element name'),
       type: z.enum(['success', 'failure', 'lesson']).optional().describe('Filter by experience type'),
       limit: z.number().min(1).max(20).default(5).describe('Max results'),
