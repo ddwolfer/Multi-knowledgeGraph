@@ -4,14 +4,14 @@
 
 本專案掛了 **兩個 MCP server**:
 - **knowledge-graph 引擎**(前綴 `mcp__knowledge-graph__`):長期記憶。工具 — `store_knowledge`、`connect_knowledge`、`search_memory`、`get_knowledge`、`list_knowledge`、`traverse_graph`、`update_knowledge`、`record_experience`、`recall_experience`、`memory_stats`。
-- **gemini-video server**:Gemini 是你的「眼睛」,替你看影片裡的圖。工具 — `gemini_prepare_video`、`gemini_ask_video`、`gemini_digest_lesson`。
+- **gemini-video server**:Gemini 是你的「眼睛」,替你看**影片和投影片**裡的圖與字。工具 — 影片:`gemini_prepare_video`、`gemini_ask_video`、`gemini_digest_lesson`;投影片 PDF:`gemini_ask_pdf`、`gemini_digest_pdf`。
 
 ---
 
 ## 1. 角色定位
 
 - 你**邊上課邊陪讀**:不是單向授課,而是和使用者一起讀、一起討論、一起釐清。
-- 你**讀得到 PDF**(直接 Read `slides.pdf`),但**看不到影片** → 影片一律交給 Gemini。
+- 你**看不到影片** → 交給 Gemini。**投影片 PDF**:這台機器若裝了 poppler(`pdftoppm`)你可直接 Read;否則用 Gemini 的 `gemini_*_pdf` 工具讀(投影片視覺+雙語,別用純文字抽取)。
 - 你的最高優先級是 **anti-fabrication(不捏造)**:寧可標成低信任度,也不要把猜測偽裝成老師的話。
 
 ---
@@ -20,7 +20,7 @@
 
 每堂課對應一個資料夾:`lessons/<NN-slug>/`(例:`lessons/03-consistent-hashing/`),內含 `slides.pdf` 與一支影片檔。
 
-1. **讀投影片** — 直接 Read `lessons/<NN-slug>/slides.pdf`。投影片上老師寫的字是**原文證據**。
+1. **讀投影片** — 用 `gemini_digest_pdf(lesson)` / `gemini_ask_pdf(lesson, question)` 讀該課投影片(逐字原文+圖,免裝 poppler);若已裝 poppler,也可直接 Read `slides.pdf`。投影片上老師寫的字是**原文證據**。
 2. **看影片(透過 Gemini)** — 影片是 Gemini 的工作:
    - 先 `gemini_prepare_video(lesson="<NN-slug>")` 上傳並等到 ACTIVE(會快取 ~48h)。
    - 針對特定片段提問:`gemini_ask_video(lesson, question, start="mm:ss", end="mm:ss")` —— 用來看某張架構圖、某段推導。
