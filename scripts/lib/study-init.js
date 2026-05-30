@@ -10,7 +10,7 @@
  * positional arg the hooks read (KG_DB_PATH env > argv[2] > default).
  */
 
-import { readFileSync, mkdirSync, cpSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, cpSync } from 'node:fs';
 import { resolve, join, dirname, basename } from 'node:path';
 import { substitute, hasPlaceholders } from './placeholders.js';
 import { ensureMcpServer, mergeClaudeHooks } from './json-merge.js';
@@ -93,14 +93,41 @@ export function buildStudyHooks({ engineDir, dbPath, hookTemplatePath }) {
   return hooks;
 }
 
+// Dirs never copied when vendoring the engine into a project's kg/.
+const VENDOR_EXCLUDE_DIRS = new Set(['.git', 'node_modules', 'plans', 'templates']);
+
+/**
+ * Vendor the engine CORE into `kgDir` (a copy, not a git clone) so the study
+ * project is self-contained: main.js, lib/, tools/, hooks/, scripts/, package*.
+ * Excludes .git / node_modules / plans / templates and the engine's own
+ * knowledge.db(-wal/-shm). Writes a .engine-source stamp recording provenance.
+ */
+export function vendorEngine({ sourceEngineDir, kgDir, meta = {} }) {
+  const src = resolve(sourceEngineDir);
+  const dest = resolve(kgDir);
+  mkdirSync(dest, { recursive: true });
+  cpSync(src, dest, {
+    recursive: true,
+    filter: (s) => {
+      const b = basename(s);
+      if (VENDOR_EXCLUDE_DIRS.has(b)) return false;
+      if (/^knowledge\.db($|-)/.test(b)) return false; // engine's own dev db + wal/shm
+      return true;
+    },
+  });
+  writeFileSync(join(dest, '.engine-source'), JSON.stringify(meta, null, 2) + '\n');
+  return { kgDir: dest };
+}
+
 /**
  * Scaffold a study project at `target`:
- *   - copy the templates/study tree (minus node_modules/.git),
- *   - write a dual-server .mcp.json (absolute paths),
+ *   - copy the templates/study tree (minus node_modules/.git/__pycache__),
+ *   - VENDOR the engine core into <target>/kg (self-contained, no central dep),
+ *   - write a dual-server .mcp.json pointing at the vendored kg/ (absolute paths),
  *   - merge KG hooks into .claude/settings.json bound to the project db.
- * Idempotent: re-running replaces the KG/gemini server entries and de-dupes hooks.
+ * Idempotent: re-running re-vendors, replaces the server entries, de-dupes hooks.
  */
-export function initStudyProject({ target, engineDir, dbName = 'system-design.db', templatesStudyDir, hookTemplatePath }) {
+export function initStudyProject({ target, engineDir, dbName = 'system-design.db', templatesStudyDir, hookTemplatePath, engineMeta = {} }) {
   const projectDir = resolve(target);
   const dbPath = toPosix(join(projectDir, dbName));
 
@@ -114,23 +141,27 @@ export function initStudyProject({ target, engineDir, dbName = 'system-design.db
     },
   });
 
-  // 2. dual-server .mcp.json (absolute paths)
+  // 2. vendor the engine into <project>/kg
+  const kgDir = join(projectDir, 'kg');
+  vendorEngine({ sourceEngineDir: engineDir, kgDir, meta: engineMeta });
+
+  // 3. dual-server .mcp.json — KG server points at the VENDORED engine
   const mcpFile = join(projectDir, '.mcp.json');
-  const { servers } = buildStudyServers({ engineDir, projectDir, dbName });
+  const { servers } = buildStudyServers({ engineDir: kgDir, projectDir, dbName });
   for (const [name, config] of Object.entries(servers)) {
     ensureMcpServer(mcpFile, name, config);
   }
 
-  // 3. .claude/settings.json hooks, bound to the project db
+  // 4. .claude/settings.json hooks — point at vendored kg/, bound to the project db
   const settingsFile = join(projectDir, '.claude', 'settings.json');
   mkdirSync(dirname(settingsFile), { recursive: true });
-  const hooks = buildStudyHooks({ engineDir, dbPath, hookTemplatePath });
+  const hooks = buildStudyHooks({ engineDir: kgDir, dbPath, hookTemplatePath });
   mergeClaudeHooks(settingsFile, hooks);
 
   return {
     target: projectDir,
+    kgDir: toPosix(resolve(kgDir)),
     dbPath,
-    engineDir: toPosix(resolve(engineDir)),
     servers: Object.keys(servers),
   };
 }

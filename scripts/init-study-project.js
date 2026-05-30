@@ -15,6 +15,7 @@
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { parseStudyArgs, initStudyProject } from './lib/study-init.js';
 
 const ENGINE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -53,6 +54,18 @@ function main() {
     process.exit(1);
   }
 
+  // Record what engine version we vendored (best-effort git SHA).
+  let sha = 'unknown';
+  try {
+    sha = execSync('git rev-parse --short HEAD', { cwd: ENGINE, stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().trim();
+  } catch { /* not a git repo / git missing — leave 'unknown' */ }
+  const engineMeta = {
+    source: ENGINE.split('\\').join('/'),
+    sha,
+    copiedAt: new Date().toISOString(),
+  };
+
   let report;
   try {
     report = initStudyProject({
@@ -61,6 +74,7 @@ function main() {
       dbName: opts.db,
       templatesStudyDir,
       hookTemplatePath,
+      engineMeta,
     });
   } catch (e) {
     console.error(`Scaffold failed: ${e.message}`);
@@ -68,17 +82,20 @@ function main() {
   }
 
   console.log(`\n✓ Study project scaffolded at: ${report.target}`);
+  console.log(`  Engine vendored:   ${report.kgDir}  (source ${engineMeta.sha})`);
   console.log(`  KG db (absolute):  ${report.dbPath}`);
   console.log(`  MCP servers:       ${report.servers.join(', ')}\n`);
   console.log('Next steps (PowerShell):');
   console.log(`  1. cd "${report.target}"`);
-  console.log('  2. cd mcp-gemini-video; npm install; cd ..      # Gemini video server deps');
-  console.log('  3. setx GEMINI_API_KEY "your_key"                # then open a NEW terminal');
-  console.log('  4. (optional) pip install faster-whisper         # offline transcript fallback');
-  console.log('  5. Put each lesson under lessons\\<NN-slug>\\ (slides.pdf + the video)');
-  console.log('  6. claude                                        # start the study session');
-  console.log('\nFirst KG run downloads the ~560MB Qwen3 embedding model once (machine-wide cache).');
-  console.log('Re-running this generator is safe (idempotent).');
+  console.log('  2. cd kg; npm install; cd ..                     # vendored engine deps');
+  console.log('  3. cd mcp-gemini-video; npm install; cd ..       # Gemini video server deps');
+  console.log('  4. setx GEMINI_API_KEY "your_key"                # then open a NEW terminal');
+  console.log('  5. (optional) pip install faster-whisper         # offline transcript fallback');
+  console.log('  6. Put each lesson under lessons\\<NN-slug>\\ (slides.pdf + the video)');
+  console.log('  7. claude                                        # start the study session');
+  console.log('\nThe engine is COPIED into kg/ — this project is self-contained (no central dependency).');
+  console.log('First KG run downloads the ~560MB Qwen3 embedding model once (machine-wide cache).');
+  console.log('Re-running this generator is safe (idempotent); it re-vendors kg/.');
 }
 
 main();
