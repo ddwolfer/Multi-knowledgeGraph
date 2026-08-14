@@ -11,6 +11,7 @@
 import Database from 'better-sqlite3';
 import * as sqliteVec from 'sqlite-vec';
 import { fileURLToPath } from 'url';
+import { ftsQuery as buildFtsQuery, tokenize } from '../lib/tokenize.js';
 import { dirname, join, isAbsolute } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -90,10 +91,9 @@ try {
   let memoryContext = '';
 
   if (sanitized) {
-    const words = sanitized.split(/\s+/).filter(w => w.length >= 2).slice(0, 8);
+    const ftsQuery = buildFtsQuery(sanitized);
 
-    if (words.length > 0) {
-      const ftsQuery = words.map(w => `"${w}"`).join(' OR ');
+    if (ftsQuery) {
       let results = [];
 
       try {
@@ -108,7 +108,9 @@ try {
         `).all(ftsQuery);
       } catch {
         try {
-          const likeQuery = `%${words[0]}%`;
+          // `words` used to be defined here; the reference survived a refactor
+          // and only ever threw inside this catch, so the fallback was dead.
+          const likeQuery = `%${tokenize(sanitized)[0] ?? ''}%`;
           results = db.prepare(`
             SELECT n.id as node_id, n.name, n.content, n.trust, n.type, n.quote
             FROM nodes n
@@ -116,6 +118,32 @@ try {
             LIMIT 5
           `).all(likeQuery);
         } catch { /* skip */ }
+      }
+
+      // trigram matches exact 3-character substrings, so a paraphrase misses:
+      // 「難度要怎麼調」 finds nothing in an entry that says 「難度曲線」. Falling
+      // back to vectors costs a cold model load of roughly two and a half
+      // seconds -- worth paying only here, when the alternative is returning
+      // nothing at all. Never on the path where keywords already hit.
+      if (results.length === 0) {
+        try {
+          const { embed } = await import('../lib/embeddings.js');
+          const embedding = await embed(prompt);
+          // vec0 will not accept a JOIN or an extra WHERE alongside MATCH;
+          // query it alone, then look the nodes up.
+          const hits = db.prepare(`
+            SELECT node_id FROM vec_nodes
+            WHERE embedding MATCH ? ORDER BY distance LIMIT 3
+          `).all(embedding);
+          if (hits.length > 0) {
+            const holes = hits.map(() => '?').join(',');
+            results = db.prepare(`
+              SELECT id as node_id, name, trust, type, quote
+              FROM nodes
+              WHERE id IN (${holes}) AND valid_until IS NULL
+            `).all(...hits.map((h) => h.node_id));
+          }
+        } catch { /* no vectors, or no model: keywords were the only chance */ }
       }
 
       if (results.length > 0) {
