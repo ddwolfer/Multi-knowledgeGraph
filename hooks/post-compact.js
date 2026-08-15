@@ -24,6 +24,18 @@ const DB_PATH = _dbOverride
 
 const PRODUCTION_FLAG = join(os.homedir(), '.claude', 'hooks', '.kg-enforcer-active');
 
+// How many entries survive a compaction.
+//
+// Was 10, which a 26-entry corpus outgrew: three method entries fell off the
+// end, and the cut is invisible -- the injected block looks complete whatever
+// it contains. Node content is truncated to ~450 characters, so 20 costs about
+// 9KB, cheap against everything the compaction just discarded.
+//
+// This does not scale forever. Past the point where the agent stops reading
+// the block, more entries are worse than fewer, and the answer becomes
+// injecting what changed since last time rather than more of the same.
+const COMPACT_LIMIT = Number(process.env.KG_COMPACT_LIMIT) || 20;
+
 let db;
 try {
   db = new Database(DB_PATH, { readonly: true });
@@ -42,8 +54,8 @@ try {
     FROM nodes
     WHERE valid_until IS NULL AND trust = 'principle'
     ORDER BY access_count DESC
-    LIMIT 10
-  `).all();
+    LIMIT ?
+  `).all(COMPACT_LIMIT);
 
   if (corePrinciples.length > 0) {
     output += '核心規則（老師教的，不可違反）：\n';
