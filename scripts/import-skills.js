@@ -15,6 +15,7 @@ import { parseArgs } from 'node:util';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb, closeDb, setDbPath } from '../lib/db.js';
 import { embed, isReady } from '../lib/embeddings.js';
+import { isCorpusEntry } from '../lib/corpus.js';
 
 // Parse --db flag + positional skills dir
 const { values, positionals } = parseArgs({
@@ -72,7 +73,7 @@ function findMarkdownFiles(dir) {
     try {
       const stat = statSync(full);
       if (stat.isDirectory()) files.push(...findMarkdownFiles(full));
-      else if (extname(entry) === '.md' && stat.isFile()) files.push(full);
+      else if (isCorpusEntry(entry) && stat.isFile()) files.push(full);
     } catch { /* skip broken symlinks */ }
   }
   return files;
