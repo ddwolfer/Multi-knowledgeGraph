@@ -1,6 +1,6 @@
 ## Knowledge Graph (long-term memory)
 
-This project uses Multi-knowledgeGraph as persistent memory across sessions. Available MCP tools (prefix `mcp__knowledge-graph__`, or whatever name you registered it as):
+This project uses Multi-knowledgeGraph as persistent memory across sessions. Tools arrive as `mcp__<server>__<tool>`, where `<server>` is whatever this project registered it under — and there may be more than one, e.g. `kg-craft` for a corpus shared across projects alongside `kg-game` for this repo. Check the tool list you were given rather than assuming a name. The tool halves:
 
 - `search_memory` — hybrid search (vector + keyword + graph) ★ use BEFORE substantial actions
 - `get_knowledge(ids)` — fetch full details after a compact `search_memory`
@@ -11,7 +11,9 @@ This project uses Multi-knowledgeGraph as persistent memory across sessions. Ava
 - `maintain_graph` — prune / merge / validate / find orphans
 - `memory_stats` — snapshot
 
-Hooks auto-recall relevant knowledge on every user message and detect corrections. The search-enforcer hook may block write tools until you've called `search_memory` in the session.
+Hooks auto-recall relevant knowledge on every user message and detect corrections.
+
+**Nothing forces you to search.** The search-enforcer hook is off unless both the hook is wired and `~/.claude/hooks/.kg-enforcer-active` exists, and even then it gives up after three blocks. Not being stopped is not evidence that you checked.
 
 **Anti-fabrication rules**:
 - `principle` trust requires `quote` (verbatim user words)
