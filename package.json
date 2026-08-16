@@ -6,7 +6,7 @@
   "main": "main.js",
   "scripts": {
     "start": "node main.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

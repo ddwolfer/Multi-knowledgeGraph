@@ -198,7 +198,7 @@ export function registerSearchTools(server) {
       type: z.enum(['rule', 'procedure', 'observation', 'insight', 'core', 'preference']).optional()
         .describe('Filter by knowledge type'),
       element: z.string().optional()
-        .describe('Filter by metadata.element (e.g. "808", "kick", "hihat")'),
+        .describe('Filter by metadata.element (a component/subsystem tag)'),
       source: z.string().optional()
         .describe('Filter by source (e.g. "auto-capture", "teacher", session ID)'),
       sort: z.enum(['recent', 'accessed', 'name', 'strength']).default('recent')

@@ -160,6 +160,36 @@ Running `node main.js` with no flag uses `knowledge.db` at the repo root, identi
 
 ---
 
+## Combining KGs — `merge-db.js`
+
+Multi-DB (above) keeps each domain in its **own** file and process — clean isolation, but the two limits called out in the table apply: **a graph edge cannot span two `.db` files**, and only the *primary* DB gets hooks/auto-recall. When you instead want several domains to live in **one** brain — cross-domain edges, a single auto-recall surface, one embedding model in RAM — physically merge them.
+
+The mental model is **a talent pool**: keep a dedicated, append-only master per domain (e.g. `system-design.db`, `music.db`), then "hire" the ones a project needs into that project's working DB.
+
+```bash
+node scripts/merge-db.js --into team.db --from system-design.db --from music.db --tag-domain
+```
+
+| Flag | Meaning |
+|---|---|
+| `--into <file>` | Target DB to merge into (created if absent) |
+| `--from <file>` | Source DB to merge from — **repeat** for multiple sources |
+| `--tag-domain` | Stamp each copied node's `metadata.domain` with the source filename (a namespace you can later filter or prune by) |
+| `--help`, `-h` | Usage |
+
+What it does:
+
+- Copies **nodes, edges, episodes, episode_steps**, and the **`vec_nodes` embeddings** (vectors travel verbatim — no re-embedding), then **rebuilds the FTS index** from the merged node set.
+- **UUID-level dedup**: ids already present in the target are skipped, not overwritten — so re-running is **idempotent** and safe.
+- Prints a per-source + totals report (copied vs skipped counts).
+
+Two cautions, both enforced or required:
+
+- **Stop the source server first (WAL safety).** `merge-db.js` *refuses* any `--from` that has a non-empty `-wal`/`-shm` sidecar (a sign its MCP server is still running and has uncheckpointed writes) — and refuses **before** touching the target, so there is no partial merge.
+- **Same engine = same embedding model.** All databases must have been built by this engine (the fixed Qwen3 1024-dim model) for the merged vectors to remain mutually searchable. There is no per-DB model-version stamp, so don't merge DBs built with a different embedding model.
+
+---
+
 ## Core Design
 
 ### Why Build From Scratch
