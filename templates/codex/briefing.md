@@ -10,7 +10,7 @@ This project uses Multi-knowledgeGraph as persistent memory. Available MCP tools
 - `record_experience` / `recall_experience` — workflow episodes
 - `maintain_graph`, `memory_stats` — housekeeping
 
-Codex CLI doesn't have Claude Code's hook system, so auto-recall and search-enforcer don't apply. Call `search_memory` explicitly at the start of substantial tasks.
+Codex hooks are experimental and opt-in, and `kg-init` does not wire them — so nothing recalls for you here and nothing stops you from skipping a search. Call `search_memory` explicitly at the start of substantial tasks.
 
 **Anti-fabrication**: `principle` trust requires verbatim user `quote`; `inference` cannot create `must_precede` / `reason_for` edges.
 

@@ -5,12 +5,15 @@
  * Blocks write operations until search_memory has been called in the current session.
  * Only active when .kg-enforcer-active flag exists.
  *
- * Circuit breaker: after 3 consecutive blocks, auto-allow to prevent deadlock.
+ * The decision lives in lib/search-gate.js, where it is tested. This file is
+ * stdin, a state file and stdout.
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import os from 'os';
+
+import { gate, blankSession } from '../lib/search-gate.js';
 
 const FLAG_FILE = join(os.homedir(), '.claude', 'hooks', '.kg-enforcer-active');
 const STATE_FILE = join(os.homedir(), '.claude', 'hooks', '.search-enforcer-state.json');
@@ -41,77 +44,27 @@ let state = { sessions: {} };
 try {
   state = JSON.parse(readFileSync(STATE_FILE, 'utf-8'));
 } catch { /* first run or corrupt */ }
+if (!state.sessions) state.sessions = {};
 
-// Initialize session state
-if (!state.sessions[sessionId]) {
-  state.sessions[sessionId] = { searched: false, blockCount: 0 };
-}
-const session = state.sessions[sessionId];
+const before = state.sessions[sessionId] || blankSession();
+const result = gate(toolName, before);
 
-// Read-only tools: always allow
-const EXACT_READ_TOOLS = new Set([
-  'Read', 'Glob', 'Grep', 'Bash', 'Agent',  // built-in
-  'search_memory', 'traverse_graph', 'recall_experience', 'memory_stats',  // KG reads
-]);
-const PREFIX_READ_TOOLS = [
-  'mcp__knowledge-graph__search', 'mcp__knowledge-graph__traverse',
-  'mcp__knowledge-graph__recall', 'mcp__knowledge-graph__memory_stats',
-  'mcp__knowledge-graph__list',
-];
-
-const isReadTool = EXACT_READ_TOOLS.has(toolName) ||
-  PREFIX_READ_TOOLS.some(prefix => toolName.startsWith(prefix));
-
-if (isReadTool) {
-  // Mark as "searched" if it's a KG search tool
-  if (['search_memory', 'traverse_graph', 'recall_experience'].includes(toolName) ||
-      toolName.startsWith('mcp__knowledge-graph__search') ||
-      toolName.startsWith('mcp__knowledge-graph__traverse') ||
-      toolName.startsWith('mcp__knowledge-graph__recall')) {
-    session.searched = true;
-    session.blockCount = 0;
-    saveState(state);
-  }
-  process.exit(0);
-}
-
-// KG write tools: always allow (storing knowledge is good)
-if (toolName.startsWith('mcp__knowledge-graph__store') ||
-    toolName.startsWith('mcp__knowledge-graph__connect') ||
-    toolName.startsWith('mcp__knowledge-graph__record') ||
-    toolName === 'store_knowledge' || toolName === 'connect_knowledge' ||
-    toolName === 'record_experience') {
-  process.exit(0);
-}
-
-// Write tools: check if memory was searched
-if (!session.searched) {
-  // Circuit breaker: after 3 blocks, auto-allow
-  session.blockCount++;
+if (result.session.searched !== before.searched ||
+    result.session.blockCount !== before.blockCount) {
+  state.sessions[sessionId] = result.session;
   saveState(state);
+}
 
-  if (session.blockCount > 3) {
-    session.searched = true; // Reset for next round
-    session.blockCount = 0;
-    saveState(state);
-    process.exit(0); // Allow through
-  }
-
-  // Block with feedback
-  const output = {
+if (!result.allow) {
+  process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason:
-        `[Search Enforcer] 請先用 search_memory 查詢相關知識再操作。` +
-        `（${session.blockCount}/3 次擋住，第 4 次自動放行）`
+      permissionDecisionReason: result.reason,
     }
-  };
-  process.stdout.write(JSON.stringify(output));
-  process.exit(0);
+  }));
 }
 
-// Memory was searched, allow
 process.exit(0);
 
 function saveState(s) {
